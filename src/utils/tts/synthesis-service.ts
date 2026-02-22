@@ -1,9 +1,9 @@
 import type { Config } from '@/types/config/config'
 import type { TTSProviderConfig } from '@/types/config/provider'
-import type { TTSConfig, TTSModel, TTSVoice } from '@/types/config/tts'
+import type { TTSConfig } from '@/types/config/tts'
 import { storage } from '#imports'
 import { experimental_generateSpeech as generateSpeech } from 'ai'
-import { getVoicesForModel, isVoiceAvailableForModel } from '@/types/config/tts'
+import { normalizeTTSConfigForProvider } from '@/types/config/tts'
 import { getTTSProvidersConfig } from '@/utils/config/helpers'
 import { CONFIG_STORAGE_KEY } from '@/utils/constants/config'
 import { sendMessage } from '@/utils/message'
@@ -50,17 +50,13 @@ async function getOpenAIFallbackProviderId(excludedProviderId: string): Promise<
   return fallback?.id ?? null
 }
 
-function normalizeOpenAIFallbackConfig(ttsConfig: TTSConfig): Pick<TTSConfig, 'model' | 'voice' | 'speed'> {
-  const fallbackModel: TTSModel = ttsConfig.model === 'edge-tts' ? 'gpt-4o-mini-tts' : ttsConfig.model
-  const fallbackVoices = getVoicesForModel(fallbackModel)
-  const fallbackVoice: TTSVoice = isVoiceAvailableForModel(ttsConfig.voice, fallbackModel)
-    ? ttsConfig.voice
-    : fallbackVoices[0] as TTSVoice
+function normalizeOpenAIConfig(ttsConfig: TTSConfig): Pick<TTSConfig, 'model' | 'voice' | 'speed'> {
+  const normalized = normalizeTTSConfigForProvider('openai', ttsConfig)
 
   return {
-    model: fallbackModel,
-    voice: fallbackVoice,
-    speed: ttsConfig.speed,
+    model: normalized.model,
+    voice: normalized.voice,
+    speed: normalized.speed,
   }
 }
 
@@ -167,12 +163,12 @@ async function synthesizeEdgeTTSAudioBlob(
     throw new Error(`[${response.error.code}] ${response.error.message}`)
   }
 
-  const fallbackConfig = normalizeOpenAIFallbackConfig(ttsConfig)
+  const fallbackConfig = normalizeOpenAIConfig(ttsConfig)
   return generateOpenAISpeechBlob(fallbackProviderId, chunk, fallbackConfig)
 }
 
-export function isEdgeTTSSynthesis(ttsConfig: TTSConfig, ttsProviderConfig: TTSProviderConfig): boolean {
-  return ttsProviderConfig.provider === 'edge-tts' || ttsConfig.model === 'edge-tts'
+export function isEdgeTTSSynthesis(_ttsConfig: TTSConfig, ttsProviderConfig: TTSProviderConfig): boolean {
+  return ttsProviderConfig.provider === 'edge-tts'
 }
 
 export function splitTextForTTSSynthesis(text: string, useEdgeTTS: boolean): string[] {
@@ -191,5 +187,9 @@ export async function synthesizeTTSAudioBlob({
     return synthesizeEdgeTTSAudioBlob(chunk, ttsConfig, ttsProviderConfig)
   }
 
-  return generateOpenAISpeechBlob(ttsProviderConfig.id, chunk, ttsConfig)
+  return generateOpenAISpeechBlob(
+    ttsProviderConfig.id,
+    chunk,
+    normalizeOpenAIConfig(ttsConfig),
+  )
 }

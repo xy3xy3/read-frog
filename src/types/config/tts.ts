@@ -7,6 +7,13 @@ export const TTS_MODELS = [
   'edge-tts',
 ] as const
 export const ttsModelSchema = z.enum(TTS_MODELS)
+export type TTSProviderType = 'openai' | 'edge-tts'
+
+export const OPENAI_TTS_MODELS = [
+  'gpt-4o-mini-tts',
+  'tts-1',
+  'tts-1-hd',
+] as const
 
 export const TTS_1_VOICES = [
   'alloy',
@@ -107,6 +114,15 @@ export type TTSVoice = z.infer<typeof ttsVoiceSchema>
 export type TTSModel = z.infer<typeof ttsModelSchema>
 export type TTSConfig = z.infer<typeof ttsConfigSchema>
 
+export const PROVIDER_TTS_MODELS_MAP = {
+  'openai': OPENAI_TTS_MODELS,
+  'edge-tts': ['edge-tts'] as const,
+} as const satisfies Record<TTSProviderType, readonly TTSModel[]>
+
+function isIncluded<T extends string>(values: readonly T[], value: string): value is T {
+  return values.includes(value as T)
+}
+
 // Helper function to get available voices for a model
 export function getVoicesForModel(model: TTSModel) {
   return MODEL_VOICES_MAP[model]
@@ -115,4 +131,35 @@ export function getVoicesForModel(model: TTSModel) {
 // Helper function to check if a voice is available for a model
 export function isVoiceAvailableForModel(voice: string, model: TTSModel): boolean {
   return MODEL_VOICES_MAP[model].includes(voice)
+}
+
+export function getTTSModelsForProvider(providerType: TTSProviderType): readonly TTSModel[] {
+  return PROVIDER_TTS_MODELS_MAP[providerType]
+}
+
+export function getTTSVoicesForProvider(providerType: TTSProviderType, model?: TTSModel): readonly TTSVoice[] {
+  const availableModels = getTTSModelsForProvider(providerType)
+  const defaultModel = availableModels[0]
+  const resolvedModel = model && isIncluded(availableModels, model)
+    ? model
+    : defaultModel
+
+  return getVoicesForModel(resolvedModel)
+}
+
+export function normalizeTTSConfigForProvider(providerType: TTSProviderType, ttsConfig: TTSConfig): TTSConfig {
+  const availableModels = getTTSModelsForProvider(providerType)
+  const model = isIncluded(availableModels, ttsConfig.model)
+    ? ttsConfig.model
+    : availableModels[0]
+  const availableVoices = getTTSVoicesForProvider(providerType, model)
+  const voice = isIncluded(availableVoices, ttsConfig.voice)
+    ? ttsConfig.voice
+    : availableVoices[0]
+
+  return {
+    ...ttsConfig,
+    model,
+    voice,
+  }
 }

@@ -420,11 +420,11 @@ options:
       enableDescription: AI 使用文章摘要来提高翻译准确性。需要 LLM 翻译提供商。刚开始翻译页面时会有延迟，并增加 API 费用。
   tts:
     title: 文本转语音
-    description: 自定义朗读按钮使用的 OpenAI 语音参数。
+    description: 按提供商自定义朗读按钮使用的语音参数。
     provider:
       label: 提供商
       selectPlaceholder: 选择提供商
-      noProvider: 请添加 OpenAI 提供商
+      noProvider: 请选择一个文本转语音提供商
     model:
       label: 模型
     voice:

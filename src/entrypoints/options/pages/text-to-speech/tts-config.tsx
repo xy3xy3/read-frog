@@ -1,8 +1,10 @@
-import type { TTSModel, TTSVoice } from '@/types/config/tts'
+import type { TTSProviderConfig } from '@/types/config/provider'
+import type { TTSModel, TTSProviderType, TTSVoice } from '@/types/config/tts'
 import { i18n } from '#imports'
 import { IconLoader2, IconPlayerPlayFilled } from '@tabler/icons-react'
 import { useAtom, useAtomValue } from 'jotai'
-import { toast } from 'sonner'
+import { useEffect } from 'react'
+import ProviderSelector from '@/components/llm-providers/provider-selector'
 import { Badge } from '@/components/ui/base-ui/badge'
 import { Button } from '@/components/ui/base-ui/button'
 import { Field, FieldLabel } from '@/components/ui/base-ui/field'
@@ -17,14 +19,56 @@ import {
 import ValidatedInput from '@/components/ui/validated-input'
 import { useTextToSpeech } from '@/hooks/use-text-to-speech'
 import { isTTSProviderConfig } from '@/types/config/provider'
-import { getVoicesForModel, isVoiceAvailableForModel, MAX_TTS_SPEED, MIN_TTS_SPEED, TTS_MODELS, ttsSpeedSchema } from '@/types/config/tts'
+import {
+  getTTSModelsForProvider,
+  getTTSVoicesForProvider,
+  MAX_TTS_SPEED,
+  MIN_TTS_SPEED,
+  normalizeTTSConfigForProvider,
+  ttsSpeedSchema,
+} from '@/types/config/tts'
 import { configFieldsAtomMap } from '@/utils/atoms/config'
-import { featureProviderConfigAtom } from '@/utils/atoms/provider'
+import { getProviderConfigById } from '@/utils/config/helpers'
 import { TTS_VOICES_ITEMS } from '@/utils/constants/tts'
 import { ConfigCard } from '../../components/config-card'
 
+function getTTSProviderType(providerConfig: TTSProviderConfig | null): TTSProviderType | null {
+  if (!providerConfig) {
+    return null
+  }
+
+  return providerConfig.provider
+}
+
 export function TtsConfig() {
-  const ttsConfig = useAtomValue(configFieldsAtomMap.tts)
+  const [ttsConfig, setTtsConfig] = useAtom(configFieldsAtomMap.tts)
+  const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
+  const providerConfig = ttsConfig.providerId
+    ? getProviderConfigById(providersConfig, ttsConfig.providerId)
+    : null
+  const ttsProviderConfig = providerConfig && isTTSProviderConfig(providerConfig)
+    ? providerConfig
+    : null
+  const providerType = getTTSProviderType(
+    ttsProviderConfig,
+  )
+
+  useEffect(() => {
+    if (!providerType) {
+      return
+    }
+
+    const normalized = normalizeTTSConfigForProvider(providerType, ttsConfig)
+    if (normalized.model === ttsConfig.model && normalized.voice === ttsConfig.voice) {
+      return
+    }
+
+    void setTtsConfig({
+      model: normalized.model,
+      voice: normalized.voice,
+    })
+  }, [providerType, setTtsConfig, ttsConfig])
+
   return (
     <ConfigCard
       title={(
@@ -37,10 +81,11 @@ export function TtsConfig() {
       description={i18n.t('options.tts.description')}
     >
       <div className="space-y-4">
-        {ttsConfig.providerId && (
+        <TtsProviderField />
+        {ttsConfig.providerId && providerType && ttsProviderConfig && (
           <>
-            <TtsModelField />
-            <TtsVoiceField />
+            {providerType === 'openai' && <TtsModelField providerType={providerType} />}
+            <TtsVoiceField providerType={providerType} ttsProviderConfig={ttsProviderConfig} />
             <TtsSpeedField />
           </>
         )}
@@ -49,8 +94,30 @@ export function TtsConfig() {
   )
 }
 
-function TtsModelField() {
+function TtsProviderField() {
   const [ttsConfig, setTtsConfig] = useAtom(configFieldsAtomMap.tts)
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="ttsProvider">
+        {i18n.t('options.tts.provider.label')}
+      </FieldLabel>
+      <ProviderSelector
+        featureKey="tts"
+        value={ttsConfig.providerId}
+        onChange={(providerId) => {
+          void setTtsConfig({ providerId })
+        }}
+        placeholder={i18n.t('options.tts.provider.selectPlaceholder')}
+        className="w-full"
+      />
+    </Field>
+  )
+}
+
+function TtsModelField({ providerType }: { providerType: TTSProviderType }) {
+  const [ttsConfig, setTtsConfig] = useAtom(configFieldsAtomMap.tts)
+  const models = providerType ? getTTSModelsForProvider(providerType) : []
 
   return (
     <Field>
@@ -60,22 +127,18 @@ function TtsModelField() {
       <Select
         value={ttsConfig.model}
         onValueChange={(value: TTSModel | null) => {
-          if (!value)
+          if (!value || !providerType)
             return
-          // Check if current voice is available for the new model
-          const isCurrentVoiceAvailable = isVoiceAvailableForModel(ttsConfig.voice, value)
 
-          // If current voice is not available, select the first available voice
-          if (!isCurrentVoiceAvailable) {
-            const availableVoices = getVoicesForModel(value)
-            void setTtsConfig({
-              model: value,
-              voice: availableVoices[0] as TTSVoice,
-            })
-          }
-          else {
-            void setTtsConfig({ model: value })
-          }
+          const availableVoices = getTTSVoicesForProvider(providerType, value)
+          const nextVoice = availableVoices.includes(ttsConfig.voice)
+            ? ttsConfig.voice
+            : availableVoices[0]
+
+          void setTtsConfig({
+            model: value,
+            voice: nextVoice,
+          })
         }}
       >
         <SelectTrigger className="w-full">
@@ -83,7 +146,7 @@ function TtsModelField() {
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
-            {TTS_MODELS.map(model => (
+            {models.map(model => (
               <SelectItem key={model} value={model}>
                 {model}
               </SelectItem>
@@ -95,18 +158,20 @@ function TtsModelField() {
   )
 }
 
-function TtsVoiceField() {
+function TtsVoiceField({
+  providerType,
+  ttsProviderConfig,
+}: {
+  providerType: TTSProviderType
+  ttsProviderConfig: TTSProviderConfig
+}) {
   const [ttsConfig, setTtsConfig] = useAtom(configFieldsAtomMap.tts)
-  const ttsProviderConfig = useAtomValue(featureProviderConfigAtom('tts'))
-  const availableVoices = getVoicesForModel(ttsConfig.model)
+  const availableVoices = providerType
+    ? getTTSVoicesForProvider(providerType, ttsConfig.model)
+    : ([] as readonly TTSVoice[])
   const { play, isFetching, isPlaying } = useTextToSpeech()
 
   const handlePreview = async () => {
-    if (!ttsProviderConfig || !isTTSProviderConfig(ttsProviderConfig)) {
-      toast.error(i18n.t('options.tts.provider.noProvider'))
-      return
-    }
-
     void play(
       i18n.t('options.tts.voice.previewSample'),
       ttsConfig,

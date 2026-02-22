@@ -294,7 +294,7 @@ export const DEFAULT_PROVIDER_CONFIG = {
     id: 'edge-tts-default',
     name: PROVIDER_ITEMS['edge-tts'].name,
     description: i18n.t('options.apiProviders.providers.description.edgeTts'),
-    enabled: false,
+    enabled: true,
     provider: 'edge-tts',
   },
   'siliconflow': {

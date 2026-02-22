@@ -5,6 +5,7 @@ import { storage } from '#imports'
 import { configSchema } from '@/types/config/config'
 import { isAPIProviderConfig } from '@/types/config/provider'
 import { CONFIG_SCHEMA_VERSION, CONFIG_STORAGE_KEY, DEFAULT_CONFIG, LEGACY_CONFIG_SCHEMA_VERSION_STORAGE_KEY } from '../constants/config'
+import { DEFAULT_PROVIDER_CONFIG } from '../constants/providers'
 import { logger } from '../logger'
 import { runMigration } from './migration'
 
@@ -42,6 +43,8 @@ export async function initializeConfig() {
     }
   }
 
+  config = ensureEdgeTTSProviderEnabled(config ?? DEFAULT_CONFIG)
+
   if (!configSchema.safeParse(config).success) {
     logger.warn('Config is invalid, using default config')
     config = DEFAULT_CONFIG
@@ -59,6 +62,36 @@ export async function initializeConfig() {
   if (import.meta.env.DEV) {
     await loadAPIKeyFromEnv()
     await enableBetaExperience()
+  }
+}
+
+function ensureEdgeTTSProviderEnabled(config: Config): Config {
+  const edgeProviderTemplate = DEFAULT_PROVIDER_CONFIG['edge-tts']
+  const edgeProviders = config.providersConfig.filter(provider => provider.provider === 'edge-tts')
+
+  if (edgeProviders.length === 0) {
+    return {
+      ...config,
+      providersConfig: [edgeProviderTemplate, ...config.providersConfig],
+    }
+  }
+
+  const hasDisabledEdgeProvider = edgeProviders.some(provider => !provider.enabled)
+  if (!hasDisabledEdgeProvider) {
+    return config
+  }
+
+  return {
+    ...config,
+    providersConfig: config.providersConfig.map((provider) => {
+      if (provider.provider !== 'edge-tts') {
+        return provider
+      }
+      return {
+        ...provider,
+        enabled: true,
+      }
+    }),
   }
 }
 

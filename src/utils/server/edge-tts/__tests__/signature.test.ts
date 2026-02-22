@@ -35,4 +35,20 @@ describe('edge tts signature', () => {
     expect(parts[1]).toMatch(/^[A-Z0-9+/=]+$/i)
     expect(parts[3]).toBe('12345678123412341234123456789abc')
   })
+
+  it('uses default secret when runtime env is missing', async () => {
+    vi.unstubAllEnvs()
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue('abcdefab-cdef-cdef-cdef-abcdefabcdef')
+
+    const signature = await generateTranslatorSignature(
+      'https://dev.microsofttranslator.com/apps/endpoint?api-version=1.0',
+      new Date('2026-02-22T05:21:00.000Z'),
+    )
+
+    const parts = signature.split('::')
+    expect(parts).toHaveLength(4)
+    expect(parts[0]).toBe('MSTranslatorAndroidApp')
+    expect(parts[1]).toMatch(/^[A-Z0-9+/=]+$/i)
+    expect(parts[3]).toBe('abcdefabcdefcdefcdefabcdefabcdef')
+  })
 })
