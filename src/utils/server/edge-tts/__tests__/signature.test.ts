@@ -1,14 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildSignatureDate, generateTranslatorSignature } from '../signature'
 
 describe('edge tts signature', () => {
   const testSignatureSecret
     = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
 
-  vi.stubEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64', testSignatureSecret)
+  beforeEach(() => {
+    vi.stubEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64', testSignatureSecret)
+  })
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   it('formats date like translator signature format', () => {
