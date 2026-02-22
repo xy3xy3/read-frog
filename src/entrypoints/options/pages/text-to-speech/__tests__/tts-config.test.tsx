@@ -2,8 +2,30 @@
 import { render, screen } from '@testing-library/react'
 import { createStore, Provider } from 'jotai'
 import { describe, expect, it, vi } from 'vitest'
-import { DEFAULT_CONFIG } from '@/utils/constants/config'
 import { TtsConfig } from '../tts-config'
+
+const testFixtures = vi.hoisted(() => ({
+  defaultTtsConfig: {
+    providerId: 'openai-default',
+    model: 'gpt-4o-mini-tts',
+    voice: 'ash',
+    speed: 1,
+  },
+  defaultProvidersConfig: [
+    {
+      id: 'openai-default',
+      name: 'OpenAI',
+      enabled: true,
+      provider: 'openai',
+    },
+    {
+      id: 'edge-tts-default',
+      name: 'Edge TTS',
+      enabled: true,
+      provider: 'edge-tts',
+    },
+  ],
+}))
 
 const mockedAtoms = vi.hoisted(() => ({
   ttsAtom: null as any,
@@ -12,8 +34,8 @@ const mockedAtoms = vi.hoisted(() => ({
 
 vi.mock('@/utils/atoms/config', async () => {
   const { atom } = await import('jotai')
-  const ttsAtom = atom(DEFAULT_CONFIG.tts)
-  const providersConfigAtom = atom(DEFAULT_CONFIG.providersConfig)
+  const ttsAtom = atom(testFixtures.defaultTtsConfig)
+  const providersConfigAtom = atom(testFixtures.defaultProvidersConfig)
 
   mockedAtoms.ttsAtom = ttsAtom
   mockedAtoms.providersConfigAtom = providersConfigAtom
@@ -49,25 +71,18 @@ function renderTTSConfig(options?: {
 }) {
   const store = createStore()
   store.set(mockedAtoms.ttsAtom, {
-    ...DEFAULT_CONFIG.tts,
-    model: options?.model ?? DEFAULT_CONFIG.tts.model,
-    voice: options?.voice ?? DEFAULT_CONFIG.tts.voice,
+    ...testFixtures.defaultTtsConfig,
+    model: options?.model ?? testFixtures.defaultTtsConfig.model,
+    voice: options?.voice ?? testFixtures.defaultTtsConfig.voice,
     providerId: options?.provider === 'edge-tts' ? 'edge-tts-default' : 'openai-default',
   })
-  store.set(mockedAtoms.providersConfigAtom, DEFAULT_CONFIG.providersConfig.map((provider) => {
-    if (provider.provider === 'edge-tts') {
-      return { ...provider, enabled: true }
-    }
-    return provider
-  }))
+  store.set(mockedAtoms.providersConfigAtom, testFixtures.defaultProvidersConfig)
 
   render(
     <Provider store={store}>
       <TtsConfig />
     </Provider>,
   )
-
-  return store
 }
 
 describe('tts config', () => {

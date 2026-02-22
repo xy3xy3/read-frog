@@ -3,7 +3,7 @@ import { buildSignatureDate, generateTranslatorSignature } from '../signature'
 
 describe('edge tts signature', () => {
   const testSignatureSecret
-    = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
+    = 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA='
 
   beforeEach(() => {
     vi.stubEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64', testSignatureSecret)
@@ -36,19 +36,14 @@ describe('edge tts signature', () => {
     expect(parts[3]).toBe('12345678123412341234123456789abc')
   })
 
-  it('uses default secret when runtime env is missing', async () => {
+  it('throws when runtime signature secret env is missing', async () => {
     vi.unstubAllEnvs()
-    vi.spyOn(crypto, 'randomUUID').mockReturnValue('abcdefab-cdef-cdef-cdef-abcdefabcdef')
 
-    const signature = await generateTranslatorSignature(
+    await expect(generateTranslatorSignature(
       'https://dev.microsofttranslator.com/apps/endpoint?api-version=1.0',
       new Date('2026-02-22T05:21:00.000Z'),
-    )
-
-    const parts = signature.split('::')
-    expect(parts).toHaveLength(4)
-    expect(parts[0]).toBe('MSTranslatorAndroidApp')
-    expect(parts[1]).toMatch(/^[A-Z0-9+/=]+$/i)
-    expect(parts[3]).toBe('abcdefabcdefcdefcdefabcdefabcdef')
+    )).rejects.toMatchObject({
+      code: 'SIGNATURE_GENERATION_FAILED',
+    })
   })
 })

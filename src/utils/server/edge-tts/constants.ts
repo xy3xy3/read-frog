@@ -8,16 +8,23 @@ function getRuntimeEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
+function getRequiredRuntimeEnv(name: string): string {
+  const value = getRuntimeEnv(name)
+  if (!value) {
+    throw new Error(`Missing required runtime env: ${name}`)
+  }
+
+  return value
+}
+
 export const EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
-export const EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
-  = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
 
 export function getEdgeTTSTrustedClientToken(): string {
   return getRuntimeEnv('WXT_EDGE_TTS_TRUSTED_CLIENT_TOKEN') ?? EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN
 }
 
 export function getEdgeTTSSignatureSecretBase64(): string {
-  return getRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64') ?? EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
+  return getRequiredRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64')
 }
 
 export const EDGE_TTS_SIGNATURE_APP_ID
