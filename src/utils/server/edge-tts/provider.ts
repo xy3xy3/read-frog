@@ -5,10 +5,10 @@
 
 import type { EdgeTTSConfig } from './types'
 import { listEdgeTTSVoices, synthesizeEdgeTTS } from './api'
+import { EDGE_TTS_OUTPUT_FORMAT } from './constants'
 
 export interface EdgeTTSProviderOptions {
-  apiKey?: string
-  baseURL?: string
+  outputFormat?: string
 }
 
 export interface EdgeTTSSpeechModel {
@@ -22,7 +22,9 @@ export interface EdgeTTSSpeechModel {
  * 创建 Edge TTS Provider
  * 兼容 Vercel AI SDK 的 speech 接口
  */
-export function createEdgeTTS(_options: EdgeTTSProviderOptions = {}) {
+export function createEdgeTTS(options: EdgeTTSProviderOptions = {}) {
+  const outputFormat = options.outputFormat ?? EDGE_TTS_OUTPUT_FORMAT
+
   /**
    * 获取语音合成模型
    */
@@ -45,6 +47,7 @@ export function createEdgeTTS(_options: EdgeTTSProviderOptions = {}) {
         rate: config.rate,
         pitch: config.pitch,
         volume: config.volume,
+        outputFormat,
       })
 
       if (!response.ok) {

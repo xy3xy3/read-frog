@@ -131,6 +131,7 @@ options:
         vercel: ウェブコンテンツの翻訳と分析に最適化されたAIモデル
         volcengine: ByteDanceのクラウドAIプラットフォーム、Doubaoモデルを提供
         minimax: MiniMax AIプラットフォーム、先進的なMiniMax-M2モデルを提供
+        edgeTts: Microsoft Edge のオンライン音声合成サービス（API キー不要）
     apiKey:
       showAPIKey: APIキーを表示
     howToConfigure: 設定方法は?

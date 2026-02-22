@@ -21,6 +21,21 @@ describe('splitTextByUtf8Bytes', () => {
     expect(chunks[0]?.includes('&')).toBe(false)
   })
 
+  it('keeps surrogate pairs intact when splitting by bytes', () => {
+    const text = '🙂🙂🙂'
+    const chunks = splitTextByUtf8Bytes(text, 5, 10)
+
+    expect(chunks.every(chunk => !chunk.includes('\uFFFD'))).toBe(true)
+    expect(chunks.join('')).toBe(text)
+  })
+
+  it('never returns a chunk that exceeds the byte limit after boundary adjustment', () => {
+    const maxBytes = 9
+    const chunks = splitTextByUtf8Bytes('你你你 你好', maxBytes, 10)
+
+    expect(chunks.every(chunk => getUtf8Bytes(chunk) <= maxBytes)).toBe(true)
+  })
+
   it('throws when chunk count exceeds the configured limit', () => {
     const text = 'a '.repeat(200)
 

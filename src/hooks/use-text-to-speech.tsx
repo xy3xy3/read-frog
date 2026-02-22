@@ -1,135 +1,19 @@
-import type { Config } from '@/types/config/config'
 import type { TTSProviderConfig } from '@/types/config/provider'
-import type { TTSConfig, TTSModel, TTSVoice } from '@/types/config/tts'
-import { i18n, storage } from '#imports'
+import type { TTSConfig } from '@/types/config/tts'
+import { i18n } from '#imports'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { getVoicesForModel, isVoiceAvailableForModel } from '@/types/config/tts'
-import { getTTSProvidersConfig } from '@/utils/config/helpers'
-import { CONFIG_STORAGE_KEY } from '@/utils/constants/config'
-import { sendMessage } from '@/utils/message'
-import { getTTSProviderById } from '@/utils/providers/model'
-import { splitTextByUtf8Bytes } from '@/utils/server/edge-tts/chunk'
+import {
+  isEdgeTTSSynthesis,
+  splitTextForTTSSynthesis,
+  synthesizeTTSAudioBlob,
+} from '@/utils/tts/synthesis-service'
 
 interface PlayAudioParams {
   text: string
   ttsConfig: TTSConfig
   ttsProviderConfig: TTSProviderConfig
-}
-
-const MAX_CHUNK_SIZE = 4096
-
-function getEdgeTTSRate(speed: number): string {
-  const rate = Math.round((speed - 1) * 100)
-  return `${rate > 0 ? '+' : ''}${rate}%`
-}
-
-function base64ToArrayBuffer(base64: string): ArrayBuffer {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-  return bytes.buffer
-}
-
-async function getOpenAIFallbackProviderId(excludedProviderId: string): Promise<string | null> {
-  const config = await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`)
-  if (!config) {
-    return null
-  }
-
-  const fallback = getTTSProvidersConfig(config.providersConfig)
-    .find((provider) => {
-      if (provider.provider !== 'openai' || !provider.enabled || provider.id === excludedProviderId) {
-        return false
-      }
-      return Boolean(provider.apiKey?.trim())
-    })
-
-  return fallback?.id ?? null
-}
-
-function normalizeOpenAIFallbackConfig(ttsConfig: TTSConfig): Pick<TTSConfig, 'model' | 'voice' | 'speed'> {
-  const fallbackModel: TTSModel = ttsConfig.model === 'edge-tts' ? 'gpt-4o-mini-tts' : ttsConfig.model
-  const fallbackVoices = getVoicesForModel(fallbackModel)
-  const fallbackVoice: TTSVoice = isVoiceAvailableForModel(ttsConfig.voice, fallbackModel)
-    ? ttsConfig.voice
-    : fallbackVoices[0] as TTSVoice
-
-  return {
-    model: fallbackModel,
-    voice: fallbackVoice,
-    speed: ttsConfig.speed,
-  }
-}
-
-/**
- * Split text into chunks that respect sentence boundaries
- * Each chunk will be <= maxSize characters
- * Supports multiple languages including CJK (Chinese, Japanese, Korean)
- */
-function splitTextIntoChunks(text: string, maxSize: number = MAX_CHUNK_SIZE): string[] {
-  if (text.length <= maxSize) {
-    return [text]
-  }
-
-  const chunks: string[] = []
-  // Split by sentence boundaries:
-  // - Western: . ! ? with optional quotes/parentheses
-  // - CJK: 。！？；
-  // - Arabic: ؟ ۔
-  // - Devanagari: । ॥
-  // - Also split on newlines and paragraph breaks
-  const sentencePattern = /[^.!?。！？；؟۔।॥\n]+[.!?。！？；؟۔।॥\n]+|[^.!?。！？；؟۔।॥\n]+$/g
-  const sentences = text.match(sentencePattern) || [text]
-
-  let currentChunk = ''
-
-  for (const sentence of sentences) {
-    // If a single sentence is longer than maxSize, split it by words
-    if (sentence.length > maxSize) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim())
-        currentChunk = ''
-      }
-
-      const words = sentence.split(/\s+/)
-      for (const word of words) {
-        const combined = currentChunk ? `${currentChunk} ${word}` : word
-        if (combined.length > maxSize) {
-          if (currentChunk) {
-            chunks.push(currentChunk.trim())
-          }
-          currentChunk = word
-        }
-        else {
-          currentChunk = combined
-        }
-      }
-      continue
-    }
-
-    // If adding this sentence would exceed maxSize, start a new chunk
-    const combined = currentChunk + sentence
-    if (combined.length > maxSize) {
-      if (currentChunk) {
-        chunks.push(currentChunk.trim())
-      }
-      currentChunk = sentence
-    }
-    else {
-      currentChunk = combined
-    }
-  }
-
-  if (currentChunk) {
-    chunks.push(currentChunk.trim())
-  }
-
-  return chunks.filter(chunk => chunk.length > 0)
 }
 
 export function useTextToSpeech() {
@@ -157,74 +41,20 @@ export function useTextToSpeech() {
       stop()
       shouldStopRef.current = false
 
-      const shouldUseEdgeTTS = ttsProviderConfig.provider === 'edge-tts' || ttsConfig.model === 'edge-tts'
-
-      const chunks = shouldUseEdgeTTS
-        ? splitTextByUtf8Bytes(text)
-        : splitTextIntoChunks(text)
+      const shouldUseEdgeTTS = isEdgeTTSSynthesis(ttsConfig, ttsProviderConfig)
+      const chunks = splitTextForTTSSynthesis(text, shouldUseEdgeTTS)
       setTotalChunks(chunks.length)
 
       // Helper to fetch a chunk's audio blob
       const fetchChunkBlob = async (chunk: string) => {
         return queryClient.fetchQuery({
           queryKey: ['tts-audio', { text: chunk, ttsConfig, ttsProviderConfig }],
-          queryFn: async () => {
-            // Handle Edge TTS provider specially
-            if (shouldUseEdgeTTS) {
-              const response = await sendMessage('edgeTtsSynthesize', {
-                text: chunk,
-                voice: ttsConfig.voice,
-                rate: getEdgeTTSRate(ttsConfig.speed),
-                pitch: '+0Hz',
-                volume: '+0%',
-              })
-
-              if (response.ok) {
-                const audioBuffer = base64ToArrayBuffer(response.audioBase64)
-                if (audioBuffer.byteLength === 0) {
-                  throw new Error('Edge TTS returned empty audio data')
-                }
-
-                return new Blob([audioBuffer], {
-                  type: response.contentType,
-                })
-              }
-
-              const fallbackProviderId = await getOpenAIFallbackProviderId(ttsProviderConfig.id)
-              if (!fallbackProviderId) {
-                throw new Error(`[${response.error.code}] ${response.error.message}`)
-              }
-
-              const fallbackProvider = await getTTSProviderById(fallbackProviderId)
-              const fallbackConfig = normalizeOpenAIFallbackConfig(ttsConfig)
-
-              const fallbackResult = await generateSpeech({
-                model: (fallbackProvider as any).speech(fallbackConfig.model),
-                text: chunk,
-                voice: fallbackConfig.voice,
-                speed: fallbackConfig.speed,
-                outputFormat: 'wav',
-              })
-
-              return new Blob([fallbackResult.audio.uint8Array.buffer as ArrayBuffer], {
-                type: fallbackResult.audio.mediaType || 'audio/wav',
-              })
-            }
-
-            const provider = await getTTSProviderById(ttsProviderConfig.id)
-
-            const result = await generateSpeech({
-              model: (provider as any).speech(ttsConfig.model),
-              text: chunk,
-              voice: ttsConfig.voice,
-              speed: ttsConfig.speed,
-              outputFormat: 'wav',
-            })
-
-            return new Blob([result.audio.uint8Array.buffer as ArrayBuffer], {
-              type: result.audio.mediaType || 'audio/wav',
-            })
-          },
+          queryFn: () => synthesizeTTSAudioBlob({
+            chunk,
+            ttsConfig,
+            ttsProviderConfig,
+            useEdgeTTS: shouldUseEdgeTTS,
+          }),
           staleTime: Number.POSITIVE_INFINITY,
           gcTime: 1000 * 60 * 10,
         })

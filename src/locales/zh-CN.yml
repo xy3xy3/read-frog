@@ -132,6 +132,7 @@ options:
         vercel: 针对网页内容翻译和分析优化的 AI 模型
         volcengine: 字节跳动旗下云平台，提供豆包系列大模型
         minimax: MiniMax AI平台，提供先进的MiniMax-M2系列大模型
+        edgeTts: Microsoft Edge 在线语音合成服务，无需 API 密钥
     apiKey:
       showAPIKey: 显示 API Key
     howToConfigure: 如何配置?

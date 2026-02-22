@@ -1,8 +1,9 @@
-import { EDGE_TTS_ENDPOINT_URL } from './constants'
+import {
+  EDGE_TTS_ENDPOINT_URL,
+  EDGE_TTS_SIGNATURE_APP_ID,
+  EDGE_TTS_SIGNATURE_SECRET_BASE64,
+} from './constants'
 import { EdgeTTSError } from './errors'
-
-const SIGNATURE_SECRET_BASE64 = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
-const SIGNATURE_APP_ID = 'MSTranslatorAndroidApp'
 
 function base64ToBytes(base64: string): Uint8Array {
   const binaryString = atob(base64)
@@ -53,11 +54,11 @@ export async function generateTranslatorSignature(
     const requestId = crypto.randomUUID().replace(/-/g, '')
     const formattedDate = buildSignatureDate(now)
 
-    const payload = `${SIGNATURE_APP_ID}${encodedUrl}${formattedDate}${requestId}`.toLowerCase()
-    const key = base64ToBytes(SIGNATURE_SECRET_BASE64)
+    const payload = `${EDGE_TTS_SIGNATURE_APP_ID}${encodedUrl}${formattedDate}${requestId}`.toLowerCase()
+    const key = base64ToBytes(EDGE_TTS_SIGNATURE_SECRET_BASE64)
     const signature = await hmacSha256(key, payload)
 
-    return `${SIGNATURE_APP_ID}::${bytesToBase64(signature)}::${formattedDate}::${requestId}`
+    return `${EDGE_TTS_SIGNATURE_APP_ID}::${bytesToBase64(signature)}::${formattedDate}::${requestId}`
   }
   catch (error) {
     throw new EdgeTTSError('SIGNATURE_GENERATION_FAILED', 'Failed to generate translator signature', {

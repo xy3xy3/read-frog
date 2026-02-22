@@ -41,6 +41,27 @@ function isRetryableError(error: unknown): boolean {
   return error instanceof TypeError
 }
 
+function isConcatenationSafeOutputFormat(outputFormat: string): boolean {
+  const normalized = outputFormat.toLowerCase()
+  return normalized.includes('mp3') || normalized.startsWith('raw-')
+}
+
+function assertChunkConcatSupported(chunkRequests: EdgeTTSSynthesizeRequest[]): void {
+  if (chunkRequests.length <= 1) {
+    return
+  }
+
+  const requestedFormat = chunkRequests[0]?.outputFormat ?? EDGE_TTS_OUTPUT_FORMAT
+  if (isConcatenationSafeOutputFormat(requestedFormat)) {
+    return
+  }
+
+  throw new EdgeTTSError(
+    'SYNTH_REQUEST_FAILED',
+    `Output format "${requestedFormat}" is not safe for multi-chunk concatenation`,
+  )
+}
+
 async function synthesizeChunk(request: EdgeTTSSynthesizeRequest): Promise<EdgeTTSResponse> {
   const endpointInfo = await getEdgeTTSEndpointToken()
   const url = `https://${endpointInfo.endpoint.r}.tts.speech.microsoft.com/cognitiveservices/v1`
@@ -128,6 +149,8 @@ export async function synthesizeEdgeTTSChunkWithRetry(
 export async function combineEdgeTTSAudioChunks(
   chunkRequests: EdgeTTSSynthesizeRequest[],
 ): Promise<EdgeTTSResponse> {
+  assertChunkConcatSupported(chunkRequests)
+
   const chunkAudioBuffers: ArrayBuffer[] = []
   let contentType = 'audio/mpeg'
 

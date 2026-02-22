@@ -293,7 +293,7 @@ export const DEFAULT_PROVIDER_CONFIG = {
   'edge-tts': {
     id: 'edge-tts-default',
     name: PROVIDER_ITEMS['edge-tts'].name,
-    description: 'Microsoft Edge 在线语音合成服务，无需 API 密钥',
+    description: i18n.t('options.apiProviders.providers.description.edgeTts'),
     enabled: false,
     provider: 'edge-tts',
   },

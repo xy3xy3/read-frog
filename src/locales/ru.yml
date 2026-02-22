@@ -132,6 +132,7 @@ options:
         vercel: Оптимизированные ИИ-модели для перевода и анализа веб-контента
         volcengine: Облачная ИИ-платформа ByteDance, предлагающая модели Doubao для перевода и чтения
         minimax: ИИ-платформа MiniMax, предлагающая передовые модели MiniMax-M2
+        edgeTts: Онлайн-сервис синтеза речи Microsoft Edge без API-ключа
     apiKey:
       showAPIKey: Показать API-ключ
     howToConfigure: Как настроить?

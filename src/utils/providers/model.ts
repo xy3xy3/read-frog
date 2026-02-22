@@ -144,9 +144,7 @@ export async function getTTSProviderById(providerId: string) {
 
   // Handle Edge TTS provider specially
   if (providerConfig.provider === 'edge-tts') {
-    return createEdgeTTS({
-      baseURL: (providerConfig as any).baseURL,
-    })
+    return createEdgeTTS()
   }
 
   const customHeaders = CUSTOM_HEADER_MAP[providerConfig.provider]

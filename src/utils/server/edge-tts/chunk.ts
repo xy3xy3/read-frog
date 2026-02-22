@@ -9,6 +9,28 @@ function measureBytes(text: string): number {
   return new TextEncoder().encode(text).length
 }
 
+function isHighSurrogateCode(code: number): boolean {
+  return code >= 0xD800 && code <= 0xDBFF
+}
+
+function isLowSurrogateCode(code: number): boolean {
+  return code >= 0xDC00 && code <= 0xDFFF
+}
+
+function alignToCodePointBoundary(text: string, index: number): number {
+  if (index <= 0 || index >= text.length) {
+    return index
+  }
+
+  const previousCode = text.charCodeAt(index - 1)
+  const currentCode = text.charCodeAt(index)
+  if (isHighSurrogateCode(previousCode) && isLowSurrogateCode(currentCode)) {
+    return index - 1
+  }
+
+  return index
+}
+
 function findLargestSliceByBytes(text: string, maxBytes: number): number {
   let low = 1
   let high = text.length
@@ -16,10 +38,11 @@ function findLargestSliceByBytes(text: string, maxBytes: number): number {
 
   while (low <= high) {
     const middle = Math.floor((low + high) / 2)
-    const slice = text.slice(0, middle)
+    const safeMiddle = alignToCodePointBoundary(text, middle)
+    const slice = text.slice(0, safeMiddle)
     const bytes = measureBytes(slice)
     if (bytes <= maxBytes) {
-      best = middle
+      best = safeMiddle
       low = middle + 1
     }
     else {
@@ -27,7 +50,7 @@ function findLargestSliceByBytes(text: string, maxBytes: number): number {
     }
   }
 
-  return best
+  return alignToCodePointBoundary(text, best)
 }
 
 function adjustBySoftBoundary(text: string, candidate: number): number {
@@ -37,9 +60,9 @@ function adjustBySoftBoundary(text: string, candidate: number): number {
 
   const floor = Math.max(1, Math.floor(candidate * 0.6))
   for (let index = candidate; index >= floor; index--) {
-    const char = text[index]
+    const char = text[index - 1]
     if (char && SOFT_BOUNDARY_CHARS.test(char)) {
-      return index + 1
+      return index
     }
   }
 

@@ -132,6 +132,7 @@ options:
         vercel: Web içeriği çevirisi ve analizi için optimize edilmiş AI modelleri
         volcengine: Çeviri ve okuma için Doubao modelleri sunan ByteDance'ın bulut AI platformu
         minimax: Gelişmiş MiniMax-M2 modelleri sunan MiniMax AI platformu
+        edgeTts: API anahtarı gerektirmeyen Microsoft Edge çevrim içi konuşma sentez hizmeti
     apiKey:
       showAPIKey: API Anahtarını Göster
     howToConfigure: Nasıl yapılandırılır?

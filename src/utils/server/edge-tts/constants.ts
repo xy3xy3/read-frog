@@ -1,4 +1,27 @@
-export const EDGE_TTS_TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
+function getRuntimeEnv(name: string): string | undefined {
+  const value = import.meta.env[name]
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+export const EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
+export const EDGE_TTS_TRUSTED_CLIENT_TOKEN
+  = getRuntimeEnv('WXT_EDGE_TTS_TRUSTED_CLIENT_TOKEN')
+    ?? EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN
+
+export const EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
+  = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
+export const EDGE_TTS_SIGNATURE_SECRET_BASE64
+  = getRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64')
+    ?? EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
+
+export const EDGE_TTS_SIGNATURE_APP_ID
+  = getRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_APP_ID')
+    ?? 'MSTranslatorAndroidApp'
 
 export const EDGE_TTS_ENDPOINT_URL = 'https://dev.microsofttranslator.com/apps/endpoint?api-version=1.0'
 export const EDGE_TTS_VOICES_URL
