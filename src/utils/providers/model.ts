@@ -22,6 +22,7 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import { createOllama } from 'ollama-ai-provider-v2'
 import { createMinimax } from 'vercel-minimax-ai-provider'
 import { isCustomLLMProvider } from '@/types/config/provider'
+import { createEdgeTTS } from '@/utils/server/edge-tts'
 import { getLLMProvidersConfig, getProviderConfigById, getTTSProvidersConfig } from '../config/helpers'
 import { CONFIG_STORAGE_KEY } from '../constants/config'
 
@@ -139,6 +140,13 @@ export async function getTTSProviderById(providerId: string) {
   const providerConfig = getProviderConfigById(ttsProvidersConfig, providerId)
   if (!providerConfig) {
     throw new Error(`Provider ${providerId} not found`)
+  }
+
+  // Handle Edge TTS provider specially
+  if (providerConfig.provider === 'edge-tts') {
+    return createEdgeTTS({
+      baseURL: (providerConfig as any).baseURL,
+    })
   }
 
   const customHeaders = CUSTOM_HEADER_MAP[providerConfig.provider]

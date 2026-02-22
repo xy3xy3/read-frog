@@ -171,7 +171,7 @@ function FlatSelect({
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder}>
           {(provider: ProviderConfig) => (
-            <ProviderIcon logo={PROVIDER_ITEMS[provider.provider].logo(theme)} name={provider.name} size="sm" />
+            <ProviderIcon logo={(PROVIDER_ITEMS as any)[provider.provider]?.logo(theme)} name={provider.name} size="sm" />
           )}
         </SelectValue>
       </SelectTrigger>
@@ -179,7 +179,7 @@ function FlatSelect({
         <SelectGroup>
           {providers.map(provider => (
             <SelectItem key={provider.id} value={provider}>
-              <ProviderIcon logo={PROVIDER_ITEMS[provider.provider].logo(theme)} name={provider.name} size="sm" />
+              <ProviderIcon logo={(PROVIDER_ITEMS as any)[provider.provider]?.logo(theme)} name={provider.name} size="sm" />
             </SelectItem>
           ))}
         </SelectGroup>

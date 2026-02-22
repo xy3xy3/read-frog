@@ -4,6 +4,7 @@ export const TTS_MODELS = [
   'gpt-4o-mini-tts',
   'tts-1',
   'tts-1-hd',
+  'edge-tts',
 ] as const
 export const ttsModelSchema = z.enum(TTS_MODELS)
 
@@ -33,15 +34,56 @@ export const GPT_4O_MINI_VOICES = [
   'verse',
 ] as const
 
+export const EDGE_TTS_VOICES = [
+  // 中文女声
+  'zh-CN-XiaoxiaoNeural',
+  'zh-CN-XiaoyiNeural',
+  'zh-CN-XiaochenNeural',
+  'zh-CN-XiaohanNeural',
+  'zh-CN-XiaomengNeural',
+  'zh-CN-XiaomoNeural',
+  'zh-CN-XiaoqiuNeural',
+  'zh-CN-XiaoruiNeural',
+  'zh-CN-XiaoshuangNeural',
+  'zh-CN-XiaoxuanNeural',
+  'zh-CN-XiaoyanNeural',
+  'zh-CN-XiaoyouNeural',
+  'zh-CN-XiaozhenNeural',
+  // 中文男声
+  'zh-CN-YunxiNeural',
+  'zh-CN-YunyangNeural',
+  'zh-CN-YunjianNeural',
+  'zh-CN-YunfengNeural',
+  'zh-CN-YunhaoNeural',
+  'zh-CN-YunxiaNeural',
+  'zh-CN-YunyeNeural',
+  'zh-CN-YunzeNeural',
+  // 英文女声
+  'en-US-JennyNeural',
+  'en-US-AriaNeural',
+  'en-US-MichelleNeural',
+  // 英文男声
+  'en-US-GuyNeural',
+  'en-US-DavisNeural',
+  'en-US-TonyNeural',
+  // 日文
+  'ja-JP-NanamiNeural',
+  'ja-JP-KeitaNeural',
+  // 韩文
+  'ko-KR-SunHiNeural',
+  'ko-KR-InJoonNeural',
+] as const
+
 // Map models to their available voices
 export const MODEL_VOICES_MAP = {
   'tts-1': TTS_1_VOICES,
   'tts-1-hd': TTS_1_VOICES,
   'gpt-4o-mini-tts': GPT_4O_MINI_VOICES,
+  'edge-tts': EDGE_TTS_VOICES,
 } as const
 
 // Union of all possible voices
-export const ALL_TTS_VOICES = [...new Set([...TTS_1_VOICES, ...GPT_4O_MINI_VOICES])] as const
+export const ALL_TTS_VOICES = [...new Set([...TTS_1_VOICES, ...GPT_4O_MINI_VOICES, ...EDGE_TTS_VOICES])] as const
 export const ttsVoiceSchema = z.enum(ALL_TTS_VOICES as [string, ...string[]])
 
 export const MIN_TTS_SPEED = 0.25

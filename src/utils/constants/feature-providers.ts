@@ -1,5 +1,5 @@
 import type { Config } from '@/types/config/config'
-import { isLLMProvider, isTranslateProvider } from '@/types/config/provider'
+import { isLLMProvider, isTranslateProvider, isTTSProvider } from '@/types/config/provider'
 import { mergeWithArrayOverwrite } from '../atoms/config'
 import { getProviderConfigById } from '../config/helpers'
 
@@ -36,8 +36,8 @@ export const FEATURE_PROVIDER_DEFS = {
     configPath: ['selectionToolbar', 'features', 'vocabularyInsight', 'providerId'],
   },
   'tts': {
-    isProvider: isLLMProvider,
-    nullable: true, // TODO: remove nullable once we have Edge TTS provider
+    isProvider: isTTSProvider,
+    nullable: false,
     getProviderId: (c: Config) => c.tts.providerId,
     configPath: ['tts', 'providerId'],
   },

@@ -1,9 +1,17 @@
+import type { Config } from '@/types/config/config'
 import type { TTSProviderConfig } from '@/types/config/provider'
-import type { TTSConfig } from '@/types/config/tts'
+import type { TTSConfig, TTSModel, TTSVoice } from '@/types/config/tts'
+import { i18n, storage } from '#imports'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { experimental_generateSpeech as generateSpeech } from 'ai'
 import { useRef, useState } from 'react'
+import { toast } from 'sonner'
+import { getVoicesForModel, isVoiceAvailableForModel } from '@/types/config/tts'
+import { getTTSProvidersConfig } from '@/utils/config/helpers'
+import { CONFIG_STORAGE_KEY } from '@/utils/constants/config'
+import { sendMessage } from '@/utils/message'
 import { getTTSProviderById } from '@/utils/providers/model'
+import { splitTextByUtf8Bytes } from '@/utils/server/edge-tts/chunk'
 
 interface PlayAudioParams {
   text: string
@@ -12,6 +20,51 @@ interface PlayAudioParams {
 }
 
 const MAX_CHUNK_SIZE = 4096
+
+function getEdgeTTSRate(speed: number): string {
+  const rate = Math.round((speed - 1) * 100)
+  return `${rate > 0 ? '+' : ''}${rate}%`
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index++) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return bytes.buffer
+}
+
+async function getOpenAIFallbackProviderId(excludedProviderId: string): Promise<string | null> {
+  const config = await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`)
+  if (!config) {
+    return null
+  }
+
+  const fallback = getTTSProvidersConfig(config.providersConfig)
+    .find((provider) => {
+      if (provider.provider !== 'openai' || !provider.enabled || provider.id === excludedProviderId) {
+        return false
+      }
+      return Boolean(provider.apiKey?.trim())
+    })
+
+  return fallback?.id ?? null
+}
+
+function normalizeOpenAIFallbackConfig(ttsConfig: TTSConfig): Pick<TTSConfig, 'model' | 'voice' | 'speed'> {
+  const fallbackModel: TTSModel = ttsConfig.model === 'edge-tts' ? 'gpt-4o-mini-tts' : ttsConfig.model
+  const fallbackVoices = getVoicesForModel(fallbackModel)
+  const fallbackVoice: TTSVoice = isVoiceAvailableForModel(ttsConfig.voice, fallbackModel)
+    ? ttsConfig.voice
+    : fallbackVoices[0] as TTSVoice
+
+  return {
+    model: fallbackModel,
+    voice: fallbackVoice,
+    speed: ttsConfig.speed,
+  }
+}
 
 /**
  * Split text into chunks that respect sentence boundaries
@@ -104,8 +157,11 @@ export function useTextToSpeech() {
       stop()
       shouldStopRef.current = false
 
-      // Split text into chunks
-      const chunks = splitTextIntoChunks(text)
+      const shouldUseEdgeTTS = ttsProviderConfig.provider === 'edge-tts' || ttsConfig.model === 'edge-tts'
+
+      const chunks = shouldUseEdgeTTS
+        ? splitTextByUtf8Bytes(text)
+        : splitTextIntoChunks(text)
       setTotalChunks(chunks.length)
 
       // Helper to fetch a chunk's audio blob
@@ -113,10 +169,52 @@ export function useTextToSpeech() {
         return queryClient.fetchQuery({
           queryKey: ['tts-audio', { text: chunk, ttsConfig, ttsProviderConfig }],
           queryFn: async () => {
+            // Handle Edge TTS provider specially
+            if (shouldUseEdgeTTS) {
+              const response = await sendMessage('edgeTtsSynthesize', {
+                text: chunk,
+                voice: ttsConfig.voice,
+                rate: getEdgeTTSRate(ttsConfig.speed),
+                pitch: '+0Hz',
+                volume: '+0%',
+              })
+
+              if (response.ok) {
+                const audioBuffer = base64ToArrayBuffer(response.audioBase64)
+                if (audioBuffer.byteLength === 0) {
+                  throw new Error('Edge TTS returned empty audio data')
+                }
+
+                return new Blob([audioBuffer], {
+                  type: response.contentType,
+                })
+              }
+
+              const fallbackProviderId = await getOpenAIFallbackProviderId(ttsProviderConfig.id)
+              if (!fallbackProviderId) {
+                throw new Error(`[${response.error.code}] ${response.error.message}`)
+              }
+
+              const fallbackProvider = await getTTSProviderById(fallbackProviderId)
+              const fallbackConfig = normalizeOpenAIFallbackConfig(ttsConfig)
+
+              const fallbackResult = await generateSpeech({
+                model: (fallbackProvider as any).speech(fallbackConfig.model),
+                text: chunk,
+                voice: fallbackConfig.voice,
+                speed: fallbackConfig.speed,
+                outputFormat: 'wav',
+              })
+
+              return new Blob([fallbackResult.audio.uint8Array.buffer as ArrayBuffer], {
+                type: fallbackResult.audio.mediaType || 'audio/wav',
+              })
+            }
+
             const provider = await getTTSProviderById(ttsProviderConfig.id)
 
             const result = await generateSpeech({
-              model: provider.speech(ttsConfig.model),
+              model: (provider as any).speech(ttsConfig.model),
               text: chunk,
               voice: ttsConfig.voice,
               speed: ttsConfig.speed,
@@ -200,7 +298,8 @@ export function useTextToSpeech() {
       setCurrentChunk(0)
       setTotalChunks(0)
     },
-    onError: () => {
+    onError: (error) => {
+      toast.error(`${i18n.t('speak.failedToGenerateSpeech')}: ${error.message}`)
       setIsPlaying(false)
       setCurrentChunk(0)
       setTotalChunks(0)

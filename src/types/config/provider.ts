@@ -83,8 +83,8 @@ export function isNonAPIProviderConfig(config: ProviderConfig): config is NonAPI
   return isNonAPIProvider(config.provider)
 }
 
-export const TTS_PROVIDER_TYPES = ['openai'] as const satisfies Readonly<
-  (keyof typeof LLM_PROVIDER_MODELS)[]
+export const TTS_PROVIDER_TYPES = ['openai', 'edge-tts'] as const satisfies Readonly<
+  (keyof typeof LLM_PROVIDER_MODELS | 'edge-tts')[]
 >
 export type TTSProviderTypes = typeof TTS_PROVIDER_TYPES[number]
 export function isTTSProvider(provider: string): provider is TTSProviderTypes {
@@ -95,9 +95,7 @@ export function isTTSProviderConfig(config: ProviderConfig): config is TTSProvid
 }
 
 // all provider names
-export const ALL_PROVIDER_TYPES = ['google-translate', 'microsoft-translate', 'deeplx', 'siliconflow', 'tensdaq', 'ai302', 'openai-compatible', 'openai', 'deepseek', 'google', 'anthropic', 'xai', 'bedrock', 'groq', 'deepinfra', 'mistral', 'togetherai', 'cohere', 'fireworks', 'cerebras', 'replicate', 'perplexity', 'vercel', 'openrouter', 'ollama', 'volcengine', 'minimax'] as const satisfies Readonly<
-  TranslateProviderTypes[]
->
+export const ALL_PROVIDER_TYPES = ['google-translate', 'microsoft-translate', 'edge-tts', 'deeplx', 'siliconflow', 'tensdaq', 'ai302', 'openai-compatible', 'openai', 'deepseek', 'google', 'anthropic', 'xai', 'bedrock', 'groq', 'deepinfra', 'mistral', 'togetherai', 'cohere', 'fireworks', 'cerebras', 'replicate', 'perplexity', 'vercel', 'openrouter', 'ollama', 'volcengine', 'minimax'] as const
 export type AllProviderTypes = typeof ALL_PROVIDER_TYPES[number]
 
 export function isPureTranslateProvider(provider: TranslateProviderTypes): provider is typeof PURE_TRANSLATE_PROVIDERS[number] {
@@ -250,6 +248,9 @@ export const providerConfigSchemaList = [
   }),
   baseProviderConfigSchema.extend({
     provider: z.literal('microsoft-translate'),
+  }),
+  baseProviderConfigSchema.extend({
+    provider: z.literal('edge-tts'),
   }),
 ] as const
 

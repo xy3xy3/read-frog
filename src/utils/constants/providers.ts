@@ -1,11 +1,11 @@
 import type { Theme } from '@/components/providers/theme-provider'
-import type { AllProviderTypes, APIProviderTypes, LLMProviderModels, ProviderConfig, ProvidersConfig } from '@/types/config/provider'
+import type { AllProviderTypes, APIProviderTypes, LLMProviderModels, ProviderConfig, ProvidersConfig, TTSProviderConfig } from '@/types/config/provider'
 import { i18n } from '#imports'
 import customProviderLogo from '@/assets/providers/custom-provider.svg'
 import deeplxLogoDark from '@/assets/providers/deeplx-dark.svg'
 import deeplxLogoLight from '@/assets/providers/deeplx-light.svg'
 import tensdaqLogoColor from '@/assets/providers/tensdaq-color.svg'
-import { API_PROVIDER_TYPES, CUSTOM_LLM_PROVIDER_TYPES, NON_API_TRANSLATE_PROVIDERS, NON_API_TRANSLATE_PROVIDERS_MAP, NON_CUSTOM_LLM_PROVIDER_TYPES, PURE_API_PROVIDER_TYPES, PURE_TRANSLATE_PROVIDERS, TRANSLATE_PROVIDER_TYPES } from '@/types/config/provider'
+import { API_PROVIDER_TYPES, CUSTOM_LLM_PROVIDER_TYPES, NON_API_TRANSLATE_PROVIDERS, NON_API_TRANSLATE_PROVIDERS_MAP, NON_CUSTOM_LLM_PROVIDER_TYPES, PURE_API_PROVIDER_TYPES, PURE_TRANSLATE_PROVIDERS, TRANSLATE_PROVIDER_TYPES, TTS_PROVIDER_TYPES } from '@/types/config/provider'
 import { omit, pick } from '@/types/utils'
 import { getLobeIconsCDNUrlFn } from '../logo'
 import { WEBSITE_URL } from './url'
@@ -144,6 +144,11 @@ export const PROVIDER_ITEMS: Record<AllProviderTypes, { logo: (theme: Theme) => 
       logo: getLobeIconsCDNUrlFn('google-color'),
       name: NON_API_TRANSLATE_PROVIDERS_MAP['google-translate'],
       website: 'https://translate.google.com',
+    },
+    'edge-tts': {
+      logo: getLobeIconsCDNUrlFn('edge-color'),
+      name: 'Edge TTS',
+      website: 'https://www.microsoft.com/edge',
     },
     'deeplx': {
       logo: (theme: Theme) => theme === 'light' ? deeplxLogoLight : deeplxLogoDark,
@@ -284,6 +289,13 @@ export const DEFAULT_PROVIDER_CONFIG = {
     name: PROVIDER_ITEMS['microsoft-translate'].name,
     enabled: true,
     provider: 'microsoft-translate',
+  },
+  'edge-tts': {
+    id: 'edge-tts-default',
+    name: PROVIDER_ITEMS['edge-tts'].name,
+    description: 'Microsoft Edge 在线语音合成服务，无需 API 密钥',
+    enabled: false,
+    provider: 'edge-tts',
   },
   'siliconflow': {
     id: 'siliconflow-default',
@@ -490,10 +502,11 @@ export const DEFAULT_PROVIDER_CONFIG = {
     provider: 'minimax',
     model: DEFAULT_LLM_PROVIDER_MODELS.minimax,
   },
-} as const satisfies Record<AllProviderTypes, ProviderConfig>
+} as const satisfies Record<Exclude<AllProviderTypes, 'edge-tts'>, ProviderConfig> & Record<'edge-tts', TTSProviderConfig>
 
 export const DEFAULT_PROVIDER_CONFIG_LIST: ProvidersConfig = [
   DEFAULT_PROVIDER_CONFIG['microsoft-translate'],
+  DEFAULT_PROVIDER_CONFIG['edge-tts'],
   DEFAULT_PROVIDER_CONFIG['google-translate'],
   DEFAULT_PROVIDER_CONFIG.openai,
   DEFAULT_PROVIDER_CONFIG.tensdaq,
@@ -541,6 +554,11 @@ export const API_PROVIDER_ITEMS = pick(
   PROVIDER_ITEMS,
   API_PROVIDER_TYPES,
 )
+
+export const TTS_PROVIDER_ITEMS = pick(
+  PROVIDER_ITEMS,
+  TTS_PROVIDER_TYPES,
+) as Record<typeof TTS_PROVIDER_TYPES[number], { logo: (theme: Theme) => string, name: string, website: string }>
 
 export const PROVIDER_GROUPS = {
   builtInProviders: {
