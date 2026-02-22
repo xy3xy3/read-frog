@@ -8,24 +8,31 @@ function getRuntimeEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-export const EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4'
-export const EDGE_TTS_TRUSTED_CLIENT_TOKEN
-  = getRuntimeEnv('WXT_EDGE_TTS_TRUSTED_CLIENT_TOKEN')
-    ?? EDGE_TTS_DEFAULT_TRUSTED_CLIENT_TOKEN
+function getRequiredRuntimeEnv(name: string): string {
+  const value = getRuntimeEnv(name)
+  if (!value) {
+    throw new Error(`Missing required runtime env: ${name}`)
+  }
+  return value
+}
 
-export const EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
-  = 'oik6PdDdMnOXemTbwvMn9de/h9lFnfBaCWbGMMZqqoSaQaqUOqjVGm5NqsmjcBI1x+sS9ugjB55HEJWRiFXYFw=='
-export const EDGE_TTS_SIGNATURE_SECRET_BASE64
-  = getRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64')
-    ?? EDGE_TTS_DEFAULT_SIGNATURE_SECRET_BASE64
+export function getEdgeTTSTrustedClientToken(): string {
+  return getRequiredRuntimeEnv('WXT_EDGE_TTS_TRUSTED_CLIENT_TOKEN')
+}
+
+export function getEdgeTTSSignatureSecretBase64(): string {
+  return getRequiredRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_SECRET_BASE64')
+}
 
 export const EDGE_TTS_SIGNATURE_APP_ID
   = getRuntimeEnv('WXT_EDGE_TTS_SIGNATURE_APP_ID')
     ?? 'MSTranslatorAndroidApp'
 
 export const EDGE_TTS_ENDPOINT_URL = 'https://dev.microsofttranslator.com/apps/endpoint?api-version=1.0'
-export const EDGE_TTS_VOICES_URL
-  = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=${EDGE_TTS_TRUSTED_CLIENT_TOKEN}`
+
+export function getEdgeTTSVoicesUrl(): string {
+  return `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=${getEdgeTTSTrustedClientToken()}`
+}
 
 export const EDGE_TTS_OUTPUT_FORMAT = 'audio-24khz-48kbitrate-mono-mp3'
 

@@ -1,7 +1,7 @@
 import {
   EDGE_TTS_ENDPOINT_URL,
   EDGE_TTS_SIGNATURE_APP_ID,
-  EDGE_TTS_SIGNATURE_SECRET_BASE64,
+  getEdgeTTSSignatureSecretBase64,
 } from './constants'
 import { EdgeTTSError } from './errors'
 
@@ -55,7 +55,7 @@ export async function generateTranslatorSignature(
     const formattedDate = buildSignatureDate(now)
 
     const payload = `${EDGE_TTS_SIGNATURE_APP_ID}${encodedUrl}${formattedDate}${requestId}`.toLowerCase()
-    const key = base64ToBytes(EDGE_TTS_SIGNATURE_SECRET_BASE64)
+    const key = base64ToBytes(getEdgeTTSSignatureSecretBase64())
     const signature = await hmacSha256(key, payload)
 
     return `${EDGE_TTS_SIGNATURE_APP_ID}::${bytesToBase64(signature)}::${formattedDate}::${requestId}`
